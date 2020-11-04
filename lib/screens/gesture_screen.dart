@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:gesture_collection_app/models/gesture.dart';
-import 'package:gesture_collection_app/services/gesture_service.dart';
-import 'package:provider/provider.dart';
 
+// ignore: must_be_immutable
 class GestureScreen extends StatefulWidget {
   String newLabel;
 

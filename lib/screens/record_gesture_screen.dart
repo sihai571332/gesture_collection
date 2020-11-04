@@ -3,10 +3,15 @@ import 'package:gesture_collection_app/main.dart';
 import 'package:gesture_collection_app/models/gesture.dart';
 import 'package:gesture_collection_app/services/gesture_service.dart';
 import 'package:gesture_collection_app/widgets/label_widget.dart';
+import 'package:gesture_collection_app/screens/SimpleLineChart.dart';
 import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'package:sensors/sensors.dart';
 import 'dart:async';
+
+import 'package:flutter_echarts/flutter_echarts.dart';
+import 'package:assets_audio_player/assets_audio_player.dart';
+import 'package:vibration/vibration.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -36,8 +41,10 @@ class _CountDownTimerState extends State<CountDownTimer>
     with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   String selecteLabel = LabelWidget().labelName;
   AnimationController controller;
+
   @override
   bool get wantKeepAlive => true;
+
   String get timerString {
     Duration duration = controller.duration * controller.value;
     return '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -47,8 +54,12 @@ class _CountDownTimerState extends State<CountDownTimer>
   String userId = '';
   var xyz = [];
   var abc = [];
-  var gestures = [];
+  List<Gesture> gestures = [];
   var a = [];
+  var x_data = [];
+  var y_data = [];
+  var z_data = [];
+  int temp = 0;
   AccelerometerEvent event;
   Timer timer;
   StreamSubscription accel;
@@ -66,33 +77,34 @@ class _CountDownTimerState extends State<CountDownTimer>
   }
 
   var l;
+
   // List<MeasuredDataObject> l = [];
   @override
   void initState() {
-    gestureService = new GestureService();
     super.initState();
+    gestureService = new GestureService();
     controller = AnimationController(
       vsync: this,
-      duration: Duration(seconds: 5),
+      duration: Duration(seconds: 3),
     )..stop();
   }
 
   @override
-  Widget build(BuildContext context) {
-    ThemeData themeData = Theme.of(context);
+  Widget build(BuildContext mainContext) {
+    ThemeData themeData = Theme.of(mainContext);
     return Scaffold(
       backgroundColor: Colors.white10,
       body: AnimatedBuilder(
           animation: controller,
-          builder: (context, child) {
+          builder: (mainContext, child) {
             return Stack(
               children: <Widget>[
                 Align(
                   alignment: Alignment.bottomCenter,
                   child: Container(
                     color: Colors.white10,
-                    height:
-                        controller.value * MediaQuery.of(context).size.height,
+                    height: controller.value *
+                        MediaQuery.of(mainContext).size.height,
                   ),
                 ),
                 Padding(
@@ -144,17 +156,23 @@ class _CountDownTimerState extends State<CountDownTimer>
                         ),
                       ),
                       AnimatedBuilder(
-                          animation: Tween<double>(begin: 0, end: 5)
+                          animation: Tween<double>(begin: 0, end: 3)
                               .animate(controller),
-                          builder: (context, child) {
+                          builder: (mainContext, child) {
                             return FloatingActionButton.extended(
                                 onPressed: () {
                                   if (controller.isAnimating) {
                                     controller.stop();
                                   } else {
-                                    accel = accelerometerEvents
-                                        .listen((AccelerometerEvent event) {
+                                    AssetsAudioPlayer.playAndForget(
+                                        Audio("assets/audio/test.wav"));
+                                    accel = accelerometerEvents.listen(
+                                        (AccelerometerEvent event) async {
                                       print(event);
+                                      x_data.add(new fkme(event.x,temp));
+                                      y_data.add(new fkme(event.y,temp));
+                                      z_data.add(new fkme(event.z,temp));
+                                      temp++;
                                       xyz.add(DateTime.now()
                                           .millisecondsSinceEpoch);
                                       if (userId == '') {
@@ -170,23 +188,24 @@ class _CountDownTimerState extends State<CountDownTimer>
                                           event.y.toString(),
                                           event.z.toString(),
                                           dateAdded);
-                                      //xyz.add(event.x.toString());
-                                      //xyz.add(event.y.toString());
-                                      //xyz.add(event.z.toString());
-                                      //abc.add(xyz);
-                                      gestureService.addGesture(gesture);
                                       gestures.add(gesture);
-                                      //GestureService.addGesture(gesture);
-                                      /*Provider.of<GestureService>(context,
-                                              listen: false)
-                                          .addProduct(gesture);*/
                                       count++;
-                                      //xyz = [];
-                                      print(count);
+
                                       if (!controller.isAnimating) {
                                         count = 0;
-                                        //print(abc);
-                                        print(gestures);
+                                        Vibration.vibrate(duration: 1000);
+                                        showCharts(mainContext, gestures);
+                                        // for(int i = 0; i< x_data.length;i++){
+                                        //   print(x_data[i].maby+" "+x_data[i].spot);
+                                        // }
+                                        print("Showing Charts");
+                                        ciller(mainContext,gestures);
+                                        //completeDialog(mainContext, gesture);
+
+                                        x_data = [];
+                                        y_data = [];
+                                        z_data = [];
+                                        temp = 0;
                                         accel.cancel();
                                         return abc;
                                       }
@@ -196,13 +215,19 @@ class _CountDownTimerState extends State<CountDownTimer>
                                         from: controller.value == 0.0
                                             ? 1.0
                                             : controller.value);
-                                  }
+                                  }//after else
+
+
+
+
+                                  //before rest
                                 },
                                 icon: Icon(controller.isAnimating
                                     ? Icons.stop
                                     : Icons.play_arrow),
-                                label: Text(
-                                    controller.isAnimating ? "Stop" : "Play"));
+                                label: Text(controller.isAnimating
+                                    ? "Stop"
+                                    : "Start Recording"));
                           }),
                     ],
                   ),
@@ -216,6 +241,131 @@ class _CountDownTimerState extends State<CountDownTimer>
       timer?.cancel();
       accel?.cancel();
     }
+  }
+}
+
+void ciller(BuildContext context, List<Gesture> gesture) {
+  switch (showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return new GestureDetector(onDoubleTap: () {
+          //print("Double Tap Detected");
+          completeDialog(context, gesture);
+        });
+      })) {
+  }
+}
+
+void completeDialog(BuildContext context, List<Gesture> gesture) {
+  switch (showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return new
+        // GestureDetector(onDoubleTap: () {
+        //   print("Double Tap Detected");
+          SimpleDialog(
+            children: <Widget>[
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: Text('Do you want to save this gesture?'),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        RaisedButton(
+                          onPressed: () {
+                            print('Cancelled');
+                            Navigator.pop(dialogContext);
+                          },
+                          textColor: Colors.white,
+                          color: Colors.redAccent,
+                          padding: const EdgeInsets.all(0.0),
+                          child: Container(
+                            padding: const EdgeInsets.all(10.0),
+                            child: const Text('Cancel',
+                                style: TextStyle(fontSize: 20)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(width: 5),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        RaisedButton(
+                          onPressed: () {
+                            GestureService().addGesture(gesture);
+                            Navigator.pop(dialogContext);
+                          },
+                          color: Colors.blueAccent,
+                          textColor: Colors.white,
+                          padding: const EdgeInsets.all(0.0),
+                          child: Container(
+                            padding: const EdgeInsets.all(10.0),
+                            child: const Text('Save',
+                                style: TextStyle(fontSize: 20)),
+                          ),
+                        ),
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            ],
+          );
+  //      });
+      })) {
+  }
+}
+
+void showCharts(BuildContext context, List<Gesture> gesture) {
+  switch (showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return new Scaffold(
+          appBar: AppBar(
+            elevation: 0,
+            title: Text(
+              "Charts",
+              style: TextStyle(color: Colors.blueGrey),
+              textAlign: TextAlign.center,
+            ),
+            backgroundColor: Colors.transparent,
+            iconTheme: IconThemeData(color: Colors.blueGrey),
+          ),
+          body: ListView(
+            children: <Widget>[
+              Column(
+                children: <Widget>[
+                  // X plot
+                  Container(
+                      width: 200.0,
+                      height: 200.0,
+                      child: SimpleLineChart.withSampleData(gesture,0)),
+                  // Y plot
+                  Container(
+                      width: 200.0,
+                      height: 200.0,
+                      child: SimpleLineChart.withSampleData(gesture,1)),
+                  // Z plot
+                  Container(
+                    height: 200.0,
+                    width: 200.0,
+                    child: SimpleLineChart.withSampleData(gesture,2),
+                  ),
+                ],
+              ),
+            ],
+          ), //<-- I've added this line
+        );
+      })) {
   }
 }
 

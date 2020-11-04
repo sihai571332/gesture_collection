@@ -4,24 +4,30 @@ import 'dart:developer';
 import 'package:http/http.dart' as http;
 
 import 'package:gesture_collection_app/models/gesture.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_database/firebase_database.dart';
 
 class GestureService extends Service {
+  final _firebase = FirebaseDatabase.instance.reference();
   static const url = 'https://gesturedata-76273.firebaseio.com/gestures.json';
 
   List<Gesture> _gestures = [];
 
-  Future<void> addGesture(Gesture gesture) async {
+  Future<void> addGesture(List<Gesture> gestures) async {
     try {
-      final response = await http.post(url,
-          body: json.encode({
-            'userId': gesture.userId,
-            'label': gesture.label,
-            'xData': gesture.xData,
-            'yData': gesture.yData,
-            'zData': gesture.zData,
-            'dateAdded': gesture.dateAdded
-          }));
+      int temp = 0;
+      while(gestures.length>temp) {
+        Gesture gesture = gestures[temp];
+        final response = await http.post(url,
+            body: json.encode({
+              'userId': gesture.userId,
+              'label': gesture.label,
+              'xData': gesture.xData,
+              'yData': gesture.yData,
+              'zData': gesture.zData,
+              'dateAdded': gesture.dateAdded
+            }));
+        temp ++;
+      }
     } catch (e) {
       // TODO
     }
@@ -49,6 +55,45 @@ class GestureService extends Service {
 
     //id, label, xData, yData, zData, dateAdded
   }
+
+  // Future<void> addGesture(Gesture gesture) async {
+  //   try {
+  //     _firebase.set({
+  //       'userId': gesture.userId,
+  //       'label': gesture.label,
+  //       'xData': gesture.xData,
+  //       'yData': gesture.yData,
+  //       'zData': gesture.zData,
+  //       'dateAdded': gesture.dateAdded
+  //     });
+  //   } catch (e) {
+  //     // TODO: close
+  //   }
+  // }
+
+  // Future getGestures() async {
+  //   try {
+  //     _firebase.child('gestures').once().then((DataSnapshot snapshot) {
+  //       final List<Gesture> loadedGestures = [];
+  //       Map<dynamic, dynamic> extractedData = snapshot.value;
+  //       extractedData.forEach((userId, gestureData) {
+  //         loadedGestures.add(Gesture(
+  //           userId,
+  //           gestureData['label'],
+  //           gestureData['xData'],
+  //           gestureData['yData'],
+  //           gestureData['zData'],
+  //           gestureData['dateAdded'],
+  //         ));
+  //       });
+  //
+  //       print('Here is loaded gesture $loadedGestures');
+  //       return loadedGestures;
+  //     });
+  //   } catch (error) {
+  //     throw (error);
+  //   }
+  // }
 
   /*Future<void> addProduct(Gesture gesture) async {
     try {

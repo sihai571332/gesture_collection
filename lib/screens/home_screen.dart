@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:gesture_collection_app/main.dart';
-import 'package:gesture_collection_app/screens/record_gesture_screen.dart';
+import 'package:gesture_collection_app/services/gesture_service.dart';
 import 'package:gesture_collection_app/widgets/label_widget.dart';
 import 'package:gesture_collection_app/widgets/new_label_widget.dart';
 import 'package:gesture_collection_app/widgets/record_gesture_widget.dart';
 
+// ignore: must_be_immutable
 class HomeScreen extends StatefulWidget {
   String newLabel;
   HomeScreen({Key key, @required this.newLabel}) : super(key: key);
@@ -15,11 +15,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-//class _HomeScreenState extends StatelessWidget {
+  GestureService gestureService = GestureService();
   String _newLabel;
   //HomeScreen({Key key, @required this.newLabel}) : super(key: key);
   _HomeScreenState(newLabel) {
     _newLabel = newLabel;
+    gestureService.getGestures();
+    print("HEre we triggered gesture");
   }
 
   @override
